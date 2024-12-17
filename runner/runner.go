@@ -57,6 +57,11 @@ func (r *Runner) StartAll(serviceErrCh chan error) ([]topological.Task, error) {
 			return nil
 		}
 
+		if service.Deferred {
+			log.Printf("Deferring %s\n", colorize(service.VersionedServiceSpec))
+			return nil
+		}
+
 		if terseOutput {
 			log.Printf("Starting %s\n", colorize(service.VersionedServiceSpec))
 		} else {
@@ -83,6 +88,10 @@ func (r *Runner) StartAll(serviceErrCh chan error) ([]topological.Task, error) {
 
 	for _, service := range r.serviceInstances {
 		if service.Type != "service" {
+			continue
+		}
+
+		if service.Deferred {
 			continue
 		}
 

@@ -196,6 +196,7 @@ def _itest_service_impl(ctx):
         "http_health_check_address": ctx.attr.http_health_check_address,
         "autoassign_port": ctx.attr.autoassign_port,
         "so_reuseport_aware": ctx.attr.so_reuseport_aware,
+        "deferred": ctx.attr.deferred,
         "named_ports": ctx.attr.named_ports,
         "hot_reloadable": ctx.attr.hot_reloadable,
         "expected_start_duration": ctx.attr.expected_start_duration,
@@ -241,6 +242,9 @@ _itest_service_attrs = _itest_binary_attrs | {
         For example, a port assigned with `named_ports = ["http_port"]` will be assigned a fully-qualified name of `@@//label/for:service:http_port`.
 
         Named ports are accessible through the service-port mapping. For more details, see `autoassign_port`.""",
+    ),
+    "deferred": attr.bool(
+        doc = """If set, the service manager will not be start on boot up. It can be started using the service manager's control API.""",
     ),
     "so_reuseport_aware": attr.bool(
         doc = """If set, the service manager will not release the autoassigned port. The service binary must use SO_REUSEPORT when binding it.

@@ -20,6 +20,7 @@ type ServiceSpec struct {
 	VersionFile            string            `json:"version_file"`
 	Deps                   []string          `json:"deps"`
 	AutoassignPort         bool              `json:"autoassign_port"`
+	Deferred               bool              `json:"deferred"`
 	SoReuseportAware       bool              `json:"so_reuseport_aware"`
 	NamedPorts             []string          `json:"named_ports"`
 	HotReloadable          bool              `json:"hot_reloadable"`

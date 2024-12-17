@@ -5,6 +5,7 @@ package svcctl
 import (
 	"context"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"os/exec"
@@ -58,12 +59,18 @@ func handleHealthCheck(ctx context.Context, r *runner.Runner, _ chan error, w ht
 	w.WriteHeader(http.StatusOK)
 }
 
+func colorize(s svclib.VersionedServiceSpec) string {
+	return s.Colorize(s.Label)
+}
+
 func handleStart(ctx context.Context, r *runner.Runner, serviceErrCh chan error, w http.ResponseWriter, req *http.Request) {
 	s, status, err := getService(r, req)
 	if err != nil {
 		http.Error(w, err.Error(), status)
 		return
 	}
+
+	log.Printf("Starting %s\n", colorize(s.VersionedServiceSpec))
 
 	err = s.Start(ctx)
 	if err != nil {
