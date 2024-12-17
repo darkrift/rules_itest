@@ -70,6 +70,29 @@ func handleStart(ctx context.Context, r *runner.Runner, serviceErrCh chan error,
 		return
 	}
 
+	if s.Deferred {
+		// make sure all the deferred dependencies are started
+		for _, dep := range s.Deps {
+			depService := r.GetInstance(dep)
+			if depService == nil {
+				http.Error(w, fmt.Sprintf("dependency %q not found", dep), http.StatusInternalServerError)
+				return
+			}
+
+			if depService.Deferred {
+				continue
+			}
+
+			if depService.Type == "service" {
+				isHealthy := s.HealthCheck(ctx, 0)
+				if !isHealthy {
+					http.Error(w, "Healthcheck failed", http.StatusServiceUnavailable)
+					return
+				}
+			}
+		}
+	}
+
 	log.Printf("Starting %s\n", colorize(s.VersionedServiceSpec))
 
 	err = s.Start(ctx)

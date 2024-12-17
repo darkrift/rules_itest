@@ -107,6 +107,9 @@ func main() {
 	unversionedSpecs, err := readServiceSpecs(serviceSpecsPath)
 	must(err)
 
+	err = validateDeferredDependencies(unversionedSpecs)
+	must(err)
+
 	// Make sure we grab the svcctl port before we assign test ports,
 	// otherwise we might steal an assigned port by accident.
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
@@ -302,6 +305,21 @@ func main() {
 			must(err)
 		}
 	}
+}
+
+func validateDeferredDependencies(
+	serviceSpecs map[string]svclib.ServiceSpec,
+) error {
+	for label, spec := range serviceSpecs {
+		if !spec.Deferred && len(spec.Deps) > 0 {
+			for _, dep := range spec.Deps {
+				if serviceSpecs[dep].Deferred {
+					return fmt.Errorf("service %s is not deferred but depends on deferred service %s", label, dep)
+				}
+			}
+		}
+	}
+	return nil
 }
 
 func readServiceSpecs(
