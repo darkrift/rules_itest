@@ -1,0 +1,87 @@
+load("@aspect_rules_js//js:defs.bzl", "js_binary")
+load("@rules_itest//:itest.bzl", "itest_service", "service_test")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("//:must_fail.bzl", "must_fail")
+
+js_binary(
+    name = "server",
+    entry_point = "main.mjs",
+    tags = ["manual"],
+)
+
+itest_service(
+    name = "service_timeout_error",
+    args = ["$${PORT}"],
+    autoassign_port = True,
+    env = {
+        "SHUTDOWN_WAIT_SECONDS": "1000",  # seconds
+    },
+    exe = ":server",
+    http_health_check_address = "http://localhost:$${PORT}",
+    shutdown_timeout = "2s",
+    tags = ["manual"],
+)
+
+itest_service(
+    name = "service_timeout_no_error",
+    args = ["$${PORT}"],
+    autoassign_port = True,
+    env = {
+        "SHUTDOWN_WAIT_SECONDS": "1000",  # seconds
+    },
+    error_on_forceful_shutdown = False,
+    exe = ":server",
+    http_health_check_address = "http://localhost:$${PORT}",
+    shutdown_timeout = "2s",
+    tags = ["manual"],
+)
+
+itest_service(
+    name = "service_graceful",
+    args = ["$${PORT}"],
+    autoassign_port = True,
+    env = {
+        "SHUTDOWN_WAIT_SECONDS": "1",  # seconds
+    },
+    exe = ":server",
+    http_health_check_address = "http://localhost:$${PORT}",
+    shutdown_timeout = "10s",
+    tags = ["manual"],
+)
+
+sh_test(
+    name = "dummy_test",
+    srcs = [":dummy.sh"],
+    tags = ["manual"],
+)
+
+service_test(
+    name = "graceful_shutdown_test",
+    services = [
+        ":service_graceful",
+    ],
+    test = "dummy_test",
+)
+
+service_test(
+    name = "timeout_shutdown_test",
+    services = [
+        ":service_timeout_error",
+    ],
+    tags = ["manual"],
+    test = "dummy_test",
+)
+
+service_test(
+    name = "timeout_shutdown_no_error_test",
+    services = [
+        ":service_timeout_no_error",
+    ],
+    tags = ["manual"],
+    test = "dummy_test",
+)
+
+must_fail(
+    name = "shutdown_test_failure",
+    test = "timeout_shutdown_test",
+)
