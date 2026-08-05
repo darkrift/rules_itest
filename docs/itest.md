@@ -40,7 +40,7 @@ This can be used in conjunction with the `/v0/port` API to let other tools inter
 ## itest_service
 
 <pre>
-load("@rules_itest//private:itest.bzl", "itest_service")
+load("@rules_itest//:itest.bzl", "itest_service")
 
 itest_service(<a href="#itest_service-name">name</a>, <a href="#itest_service-autoassign_port">autoassign_port</a>, <a href="#itest_service-data">data</a>, <a href="#itest_service-deps">deps</a>, <a href="#itest_service-enforce_graceful_shutdown">enforce_graceful_shutdown</a>, <a href="#itest_service-env">env</a>, <a href="#itest_service-exe">exe</a>,
               <a href="#itest_service-expected_start_duration">expected_start_duration</a>, <a href="#itest_service-health_check">health_check</a>, <a href="#itest_service-health_check_args">health_check_args</a>, <a href="#itest_service-health_check_interval">health_check_interval</a>,
@@ -83,7 +83,7 @@ All [common binary attributes](https://bazel.build/reference/be/common-definitio
 ## itest_service_group
 
 <pre>
-load("@rules_itest//private:itest.bzl", "itest_service_group")
+load("@rules_itest//:itest.bzl", "itest_service_group")
 
 itest_service_group(<a href="#itest_service_group-name">name</a>, <a href="#itest_service_group-port_aliases">port_aliases</a>, <a href="#itest_service_group-services">services</a>)
 </pre>
@@ -110,7 +110,7 @@ It can bring up multiple services with a single `bazel run` command, which is us
 ## itest_task
 
 <pre>
-load("@rules_itest//private:itest.bzl", "itest_task")
+load("@rules_itest//:itest.bzl", "itest_task")
 
 itest_task(<a href="#itest_task-name">name</a>, <a href="#itest_task-deps">deps</a>, <a href="#itest_task-data">data</a>, <a href="#itest_task-env">env</a>, <a href="#itest_task-exe">exe</a>)
 </pre>
@@ -137,7 +137,7 @@ All [common binary attributes](https://bazel.build/reference/be/common-definitio
 ## service_test
 
 <pre>
-load("@rules_itest//private:itest.bzl", "service_test")
+load("@rules_itest//:itest.bzl", "service_test")
 
 service_test(<a href="#service_test-name">name</a>, <a href="#service_test-data">data</a>, <a href="#service_test-env">env</a>, <a href="#service_test-port_aliases">port_aliases</a>, <a href="#service_test-services">services</a>, <a href="#service_test-test">test</a>)
 </pre>
