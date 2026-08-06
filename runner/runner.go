@@ -265,6 +265,9 @@ func initializeServiceCmd(ctx context.Context, instance *ServiceInstance) error 
 	for k, v := range s.Env {
 		cmd.Env = append(cmd.Env, k+"="+v)
 	}
+	if s.SoReuseportAware {
+		cmd.Env = append(cmd.Env, "RULES_ITEST_ENABLE_SO_REUSEPORT=1")
+	}
 	cmd.Stdout = logger.New(s.Label+"> ", s.Color, os.Stdout)
 	cmd.Stderr = logger.New(s.Label+"> ", s.Color, os.Stderr)
 

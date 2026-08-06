@@ -18,6 +18,13 @@ query:enable-reload --@rules_itest//:enable_per_service_reload
 In addition, if the `hot_reloadable` attribute is set on an `itest_service`, the service manager will
 forward the ibazel hot-reload notification over stdin instead of restarting the service.
 
+# Reusable port reservations
+
+For each service with `so_reuseport_aware = True`, the service manager adds
+`RULES_ITEST_ENABLE_SO_REUSEPORT=1` to that service's environment. Services can use this signal to
+enable the socket option required to share their bind-only port reservation: `SO_REUSEPORT` on Unix
+or `SO_REUSEADDR` on Windows. The option must be set before binding the service socket.
+
 # Service control
 
 The service manager exposes a HTTP server on `http://127.0.0.1:{SVCCTL_PORT}`. It can be used to
@@ -262,8 +269,9 @@ _itest_service_attrs = _itest_binary_attrs | {
         Named ports are accessible through the service-port mapping. For more details, see `autoassign_port`.""",
     ),
     "so_reuseport_aware": attr.bool(
-        doc = """If set, the service manager will not release the autoassigned port. The service binary must use SO_REUSEPORT when binding it.
-        This reduces the possibility of port collisions when running many service_tests in parallel, or when code binds port 0 without being
+        doc = """If set, the service manager keeps a bind-only reservation for the autoassigned port for the service manager's lifetime.
+        The service binary must use SO_REUSEPORT on Unix or SO_REUSEADDR on Windows when binding it. This reduces the possibility of port
+        collisions when running many service_tests in parallel, or when code binds port 0 without being
         aware of the port assignment mechanism.
 
         Must only be set when `autoassign_port` is enabled or `named_ports` are used.""",
