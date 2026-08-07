@@ -19,6 +19,13 @@ query:enable-reload --@rules_itest//:enable_per_service_reload
 In addition, if the `hot_reloadable` attribute is set on an `itest_service`, the service manager will
 forward the ibazel hot-reload notification over stdin instead of restarting the service.
 
+# Reusable port reservations
+
+For each service with `so_reuseport_aware = True`, the service manager adds
+`RULES_ITEST_ENABLE_SO_REUSEPORT=1` to that service's environment. Services can use this signal to
+enable the socket option required to share their bind-only port reservation: `SO_REUSEPORT` on Unix
+or `SO_REUSEADDR` on Windows. The option must be set before binding the service socket.
+
 # Service control
 
 The service manager exposes a HTTP server on `http://127.0.0.1:{SVCCTL_PORT}`. It can be used to
@@ -75,7 +82,7 @@ All [common binary attributes](https://bazel.build/reference/be/common-definitio
 | <a id="itest_service-port"></a>port |  Internal.   | <a href="https://bazel.build/concepts/labels">Label</a> | optional |  `None`  |
 | <a id="itest_service-shutdown_signal"></a>shutdown_signal |  The signal to send to the service when it needs to be shut down. Valid values are: SIGTERM and SIGKILL. SIGTERM is necessary to have proper coverage of services which needs to be gracefully terminated   | String | optional |  `"SIGTERM"`  |
 | <a id="itest_service-shutdown_timeout"></a>shutdown_timeout |  The duration to wait by default after sending the shutdown signal before forcefully killing the service. The syntax is based on common time duration with a number, followed by the time unit. For example, `200ms`, `1s`, `2m`, `3h`, `4d`. If not defined, the value of `_default_shutdown_timeout` will be used.   | String | optional |  `""`  |
-| <a id="itest_service-so_reuseport_aware"></a>so_reuseport_aware |  If set, the service manager will not release the autoassigned port. The service binary must use SO_REUSEPORT when binding it. This reduces the possibility of port collisions when running many service_tests in parallel, or when code binds port 0 without being aware of the port assignment mechanism.<br><br>Must only be set when `autoassign_port` is enabled or `named_ports` are used.   | Boolean | optional |  `False`  |
+| <a id="itest_service-so_reuseport_aware"></a>so_reuseport_aware |  If set, the service manager keeps a bind-only reservation for the autoassigned port for the service manager's lifetime. The service binary must use SO_REUSEPORT on Unix or SO_REUSEADDR on Windows when binding it. This reduces the possibility of port collisions when running many service_tests in parallel, or when code binds port 0 without being aware of the port assignment mechanism.<br><br>Must only be set when `autoassign_port` is enabled or `named_ports` are used.   | Boolean | optional |  `False`  |
 
 
 <a id="itest_service_group"></a>

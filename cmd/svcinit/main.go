@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"maps"
 	"math"
@@ -124,8 +125,9 @@ func main() {
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	must(err)
 
-	ports, err := assignPorts(unversionedSpecs)
+	ports, reservedPorts, err := assignPorts(unversionedSpecs)
 	must(err)
+	defer closeReservedPorts(reservedPorts)
 
 	svcctlPort := listener.Addr().(*net.TCPAddr).Port
 	svcctlPortStr := strconv.Itoa(svcctlPort)
@@ -374,9 +376,10 @@ func readServiceSpecs(
 func assignPorts(
 	serviceSpecs map[string]svclib.ServiceSpec,
 ) (
-	svclib.Ports, error,
+	svclib.Ports, map[string][]io.Closer, error,
 ) {
-	var toClose []net.Listener
+	var toClose []io.Closer
+	reservedPorts := map[string][]io.Closer{}
 	ports := svclib.Ports{}
 
 	for label, spec := range serviceSpecs {
@@ -386,34 +389,49 @@ func assignPorts(
 		}
 
 		// Note, this can cause collisions. So be careful!
-		// To avoid port collisions, set the `so_reuseport_aware` option on the service definition
-		// and use the SO_REUSEPORT socket option in your services.
+		// To avoid port collisions, set so_reuseport_aware on the service definition
+		// and use SO_REUSEPORT on Unix or SO_REUSEADDR on Windows in your services.
 		for portName, port := range namedPorts {
-			// We do a bit of a dance here to set SO_LINGER to 0. For details, see
-			// https://stackoverflow.com/questions/71975992/what-really-is-the-linger-time-that-can-be-set-with-so-linger-on-sockets
-			lc := net.ListenConfig{
-				Control: func(network, address string, conn syscall.RawConn) error {
-					var setSockoptErr error
-					err := conn.Control(func(fd uintptr) {
-						setSockoptErr = setSockoptsForPortAssignment(fd, &syscall.Linger{
-							Onoff:  1,
-							Linger: 0,
+			var reservedPort io.Closer
+			var err error
+			if spec.SoReuseportAware {
+				requestedPort, parseErr := strconv.Atoi(port)
+				if parseErr != nil || requestedPort < 0 || requestedPort > 65535 {
+					return nil, nil, fmt.Errorf("invalid port %q for %s", port, label)
+				}
+				reservedPort, port, err = reserveReusablePort(requestedPort)
+				if err != nil {
+					return nil, nil, err
+				}
+			} else {
+				// We do a bit of a dance here to set SO_LINGER to 0. For details, see
+				// https://stackoverflow.com/questions/71975992/what-really-is-the-linger-time-that-can-be-set-with-so-linger-on-sockets
+				lc := net.ListenConfig{
+					Control: func(network, address string, conn syscall.RawConn) error {
+						var setSockoptErr error
+						err := conn.Control(func(fd uintptr) {
+							setSockoptErr = setSockoptsForPortAssignment(fd, &syscall.Linger{
+								Onoff:  1,
+								Linger: 0,
+							})
 						})
-					})
-					if err != nil {
-						return err
-					}
-					return setSockoptErr
-				},
-			}
+						if err != nil {
+							return err
+						}
+						return setSockoptErr
+					},
+				}
 
-			listener, err := lc.Listen(context.Background(), "tcp", "127.0.0.1:"+port)
-			if err != nil {
-				return nil, err
-			}
-			_, port, err = net.SplitHostPort(listener.Addr().String())
-			if err != nil {
-				return nil, err
+				listener, listenErr := lc.Listen(context.Background(), "tcp", "127.0.0.1:"+port)
+				if listenErr != nil {
+					return nil, nil, listenErr
+				}
+				_, port, err = net.SplitHostPort(listener.Addr().String())
+				if err != nil {
+					listener.Close()
+					return nil, nil, err
+				}
+				reservedPort = listener
 			}
 
 			qualifiedPortName := label
@@ -442,15 +460,17 @@ func assignPorts(
 			}
 
 			if !spec.SoReuseportAware {
-				toClose = append(toClose, listener)
+				toClose = append(toClose, reservedPort)
+			} else {
+				reservedPorts[label] = append(reservedPorts[label], reservedPort)
 			}
 		}
 	}
 
-	for _, listener := range toClose {
-		err := listener.Close()
+	for _, reservedPort := range toClose {
+		err := reservedPort.Close()
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 
@@ -481,10 +501,20 @@ func assignPorts(
 
 	serializedPorts, err := ports.Marshal()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	os.Setenv("ASSIGNED_PORTS", string(serializedPorts))
-	return ports, nil
+	return ports, reservedPorts, nil
+}
+
+func closeReservedPorts(reservedPorts map[string][]io.Closer) {
+	for label, ports := range reservedPorts {
+		for _, port := range ports {
+			if err := port.Close(); err != nil {
+				log.Printf("failed to close reusable port reservation for %s: %v\n", label, err)
+			}
+		}
+	}
 }
 
 func augmentServiceSpecs(
