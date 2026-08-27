@@ -62,6 +62,12 @@ func (r *Runner) StartAll(serviceErrCh chan error) ([]topological.Task, error) {
 			return nil
 		}
 
+		// UpdateSpecs() keeps unchanged services running. Treat them as completed
+		// dependencies instead of attempting to start them a second time.
+		if service.isRunning() {
+			return nil
+		}
+
 		if terseOutput {
 			log.Printf("Starting %s\n", colorize(service.VersionedServiceSpec))
 		} else {
